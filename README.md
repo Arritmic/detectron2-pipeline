@@ -1,4 +1,8 @@
-# Detectron2 pipeline
+# Detectron2 pipeline - Fork with output annotations
+
+Fork from [Detectron2 pipeline](https://github.com/jagin/detectron2-pipeline) with some extra features like:
+* Save annotations in .CSV files. For the moment only Keypoints, bounding box and scores.
+
 
 Modular image processing pipeline using OpenCV and Python generators powered by [Detectron2](https://github.com/facebookresearch/detectron2).  
 
@@ -50,6 +54,11 @@ You can try other models with `--config-file` option, for example:
 For video processing run:
 
     $ python process_video.py -i assets/videos/walk.small.mp4 -p -d -ov walk.small.mp4
+
+For video processing wit annotations run:
+
+    $ python process_video.py -i assets/videos/walk.small.mp4 -p -d -ov walk.small.mp4 -s file.csv
+
 
 ## Tests
 
