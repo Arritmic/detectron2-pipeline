@@ -12,6 +12,7 @@ from pipeline.display_video import DisplayVideo
 from pipeline.save_video import SaveVideo
 from pipeline.utils import detectron
 from pipeline.track_pose import TrackPose
+from pipeline.save_annotations import SaveAnnotations
 
 
 def parse_args():
@@ -35,6 +36,8 @@ def parse_args():
                     help="separate background")
     ap.add_argument("-tp", "--track-pose", action="store_true",
                     help="track pose")
+    ap.add_argument("-s", "--save-annotations", default=None,
+                    help="save data to csv file")
 
     # Detectron settings
     ap.add_argument("--config-file",
@@ -119,6 +122,11 @@ def main(args):
                            capture_video.fps if args.fps is None else args.fps) \
         if args.out_video else None
 
+    # Annotations: For the moment restricted only to store keypoints for COCO-Keypoints models.
+    metadata_name = cfg.DATASETS.TEST[0] if len(cfg.DATASETS.TEST) else "__unused"
+    save_annotations = SaveAnnotations("vis_image", metadata_name, os.path.join(args.output, args.save_annotations),capture_video.frame_count, fps=capture_video.fps) \
+        if args.save_annotations else None
+
     # Create image processing pipeline
     pipeline = (capture_video |
                 predict |
@@ -126,7 +134,8 @@ def main(args):
                 separate_background |
                 annotate_video |
                 display_video |
-                save_video)
+                save_video |
+                save_annotations)
 
     # Iterate through pipeline
     try:
