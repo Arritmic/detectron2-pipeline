@@ -22,11 +22,12 @@ class SaveAnnotations(Pipeline):
         self.metadata_name = metadata_name
         self.metadata = MetadataCatalog.get(self.metadata_name)
         self.file_name = filename
-        self.buffer_center_position =  collections.deque(maxlen=60) # Circular Buffer for storing the center of the "main" box object.
+        self.buffer_center_position =  collections.deque(maxlen=30) # Circular Buffer for storing the center of the "main" box object.
         self.number_of_keypoints = 17
         self.cpu_device = torch.device("cpu")
         self.number_of_frames = number_of_frames
         self.fps = fps
+        self.frame_idx = 0
 
         # Header for the CSV file based on the number of keypoints of COCO dataset. (17 keypoints)
         # Each row is as follow:
@@ -68,11 +69,22 @@ class SaveAnnotations(Pipeline):
         self.buffer_center_position.append([x_center,y_center])
         numpy_array = np.array(self.buffer_center_position)
         mean = numpy_array.mean(axis=0)
-        variance = numpy_array.var(axis=0)
+        standard_desviation = numpy_array.std(axis=0)
+        own_variance = mean*0.2 # 20%
+
+        # print("Frame " + str(self.frame_idx) + " info: ")
+        # print("  - Mean: " + str(mean))
+        # print("  - Variance: " + str(own_variance))
+        # print("  - Mean+Variance: " + str(own_variance + mean))
+        # print("  - Mean-Variance: " + str(mean - own_variance))
+        # print("  - Current Center: " + str(x_center) + "," + str(y_center))
 
         same_center = False
-        if (all([x_center,y_center] <= mean + variance) and all([x_center,y_center] >= mean - variance)):
+        if (all([x_center,y_center] <= mean + own_variance) and all([x_center,y_center] >= mean - own_variance)):
             same_center = True
+        else:
+            print(">>>>>>>>>>>>> Frame " + str(self.frame_idx) + " jumped.....")
+
 
         return same_center
 
@@ -108,6 +120,8 @@ class SaveAnnotations(Pipeline):
             annotations_writer = csv.writer(annotations_file, delimiter=',', quotechar='"',
                                             quoting=csv.QUOTE_MINIMAL)
             vector_zeros = np.zeros(self.number_of_keypoints * 3 + 3) # 17 keypoints + frame_number + timestamp + detection score
+            vector_zeros[0] = int(self.frame_idx)
+            vector_zeros[1] = int(self.frame_idx * 1000 / self.fps);
             annotations_writer.writerow(vector_zeros)
 
 
@@ -122,7 +136,7 @@ class SaveAnnotations(Pipeline):
 
         # instances
         instances = predictions["instances"]
-        frame_idx = data["frame_num"]
+        self.frame_idx = data["frame_num"]
 
         if not(instances.has("pred_keypoints")):
                 return self.print_status_annotations("Save annotations: No keypoints information. Storage skipped...")
@@ -144,8 +158,8 @@ class SaveAnnotations(Pipeline):
                 with open(self.file_name, mode='a') as annotations_file:
                     annotations_writer = csv.writer(annotations_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
                     row = []
-                    row.append((int(frame_idx)))     # Number of frame
-                    row.append((int(frame_idx*1000/self.fps))) # TimeStamp
+                    row.append((int(self.frame_idx)))     # Number of frame
+                    row.append((int(self.frame_idx*1000/self.fps))) # TimeStamp
                     # save keypoint
                     for idx, keypoint in enumerate(keypoints[index]):
                         x, y, prob = keypoint
@@ -153,14 +167,14 @@ class SaveAnnotations(Pipeline):
                     row.append((float("{0:.4f}".format(scores[index])))) # Detection score for the whole object.
                     annotations_writer.writerow(row)
 
-                return  self.print_status_annotations("Save annotations: Data for frame " + str(frame_idx) + " saved.")
+                return  self.print_status_annotations("Save annotations: Data for frame " + str(self.frame_idx) + " saved.")
             else:
                 # If the object detected as main box is not the tracked one..
                 self.print_zeros_array_in_csv()
-                return self.print_status_annotations("Save annotations: Zero data for frame " + str(frame_idx) + " saved.")
+                return self.print_status_annotations("Save annotations: Zero data for frame " + str(self.frame_idx) + " saved.")
 
         else:
             # If there is not prediction ---> Store array of zeros in that line correspond to the current processed frame.
             # If any object detected in the line of that frame is written zeros.
             self.print_zeros_array_in_csv()
-            return self.print_status_annotations("Save annotations: Zero data for frame " + str(frame_idx) + " saved.")
+            return self.print_status_annotations("Save annotations: Zero data for frame " + str(self.frame_idx) + " saved.")
