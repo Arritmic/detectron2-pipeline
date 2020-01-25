@@ -4,6 +4,8 @@ Fork from [Detectron2 pipeline](https://github.com/jagin/detectron2-pipeline) wi
 * Save annotations in .CSV files. For the moment only Keypoints, bounding box and scores.
 
 
+
+
 Modular image processing pipeline using OpenCV and Python generators powered by [Detectron2](https://github.com/facebookresearch/detectron2).  
 
 For detailed description how to construct image processing pipeline using OpenCV and Python generators
